@@ -39,7 +39,10 @@ def extract_eventfeed(eventlog):
 	events.updated = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
 	author = feed.atom.Author("nodes2eventlog")
 
-	for event in eventlog[-MAX_FEED_ENTRIES:]:
+	feedlog = eventlog[-MAX_FEED_ENTRIES:]
+	feedlog.reverse()
+
+	for event in feedlog:
 		entry = feed.atom.Entry()
 		entry.title = "[%s] %s" % (event['eventtype'].upper(), event['message'])
 		entry.content = "[%s] %s" % (event['eventtype'].upper(), event['message'])
