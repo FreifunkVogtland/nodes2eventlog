@@ -95,6 +95,9 @@ def sanitize_nodestate(nodestate):
 	if not 'online' in nodestate:
 		nodestate['online'] = False
 
+	if not 'hostname' in nodestate:
+		nodestate['hostname'] = ""
+
 def log_event(eventlog, timestamp, eventtype, message):
 	eventlog.append({
 		'timestamp': timestamp,
@@ -122,6 +125,7 @@ def parse_nodestate(nodes, eventlog, state):
 
 		sanitize_nodestate(state[node_id])
 		oldstate_online = state[node_id]['online']
+		oldstate_hostname = state[node_id]['hostname']
 
 		state[node_id]['available'] = True
 		state[node_id]['hostname'] = node['nodeinfo']['hostname']
@@ -137,6 +141,9 @@ def parse_nodestate(nodes, eventlog, state):
 				eventtype = "offline"
 
 			log_event_node(eventlog, timestamp, eventtype, state[node_id])
+
+		if oldstate_hostname != "" and oldstate_hostname != state[node_id]['hostname']:
+			log_event(eventlog, timestamp, "RENAME", "%s -> %s" % (oldstate_hostname, state[node_id]['hostname']))
 
 def cleanup_eventlog(eventlog):
 	eventlog.sort(key=lambda v: v['timestamp'])
