@@ -14,6 +14,8 @@ import uuid
 MAX_LOG_ENTRIES = 10000
 MAX_FEED_ENTRIES = 100
 
+MAP_NODE_URL = 'http://vogtland.freifunk.net/map/#!v:m;n:'
+
 def load_eventlog(path):
 	try:
 		return pickle.load(open(path, 'rb'))
@@ -50,6 +52,10 @@ def extract_eventfeed(eventlog):
 		entry.published = event['timestamp'].strftime('%Y-%m-%dT%H:%M:%SZ')
 		entry.updated = event['timestamp'].strftime('%Y-%m-%dT%H:%M:%SZ')
 		entry.author = author
+
+		if 'url' in event and event['url']:
+			entry.links.append(feed.atom.Link(event['url']))
+
 		events.entries.append(entry)
 
 	return xmldoc
@@ -69,7 +75,7 @@ def sweep_nodes(state, eventlog):
 
 	removed = {k:v for (k,v) in state.items() if not v['available']}
 	for node_id, node in removed.items():
-		log_event_node(eventlog, datetime.datetime.utcnow(), "drop", node)
+		log_event_node(eventlog, datetime.datetime.utcnow(), "drop", node_id, node)
 
 	return dict(filtered_state)
 
@@ -80,16 +86,18 @@ def sanitize_nodestate(nodestate):
 	if not 'hostname' in nodestate:
 		nodestate['hostname'] = ""
 
-def log_event(eventlog, timestamp, eventtype, message):
+def log_event(eventlog, timestamp, eventtype, message, url):
 	eventlog.append({
 		'timestamp': timestamp,
 		'eventtype': eventtype,
 		'message': message,
+		'url': url,
 		'uuid': uuid.uuid4()
 	})
 
-def log_event_node(eventlog, timestamp, eventtype, node_state):
-	log_event(eventlog, timestamp, eventtype, node_state['hostname'])
+def log_event_node(eventlog, timestamp, eventtype, node_id, node_state):
+	url = MAP_NODE_URL + node_id
+	log_event(eventlog, timestamp, eventtype, node_state['hostname'], url)
 
 def parse_nodestate(nodes, eventlog, state):
 	new_node_timelimit = datetime.datetime.utcnow() - datetime.timedelta(14)
@@ -114,7 +122,7 @@ def parse_nodestate(nodes, eventlog, state):
 		state[node_id]['online'] = node['flags']['online']
 
 		if new_node:
-			log_event_node(eventlog, firsttimestamp, "new", state[node_id])
+			log_event_node(eventlog, firsttimestamp, "new", node_id, state[node_id])
 
 		if oldstate_online != node['flags']['online'] or new_node:
 			if node['flags']['online']:
@@ -122,10 +130,11 @@ def parse_nodestate(nodes, eventlog, state):
 			else:
 				eventtype = "offline"
 
-			log_event_node(eventlog, timestamp, eventtype, state[node_id])
+			log_event_node(eventlog, timestamp, eventtype, node_id, state[node_id])
 
 		if oldstate_hostname != "" and oldstate_hostname != state[node_id]['hostname']:
-			log_event(eventlog, timestamp, "RENAME", "%s -> %s" % (oldstate_hostname, state[node_id]['hostname']))
+			url = MAP_NODE_URL + node_id
+			log_event(eventlog, timestamp, "RENAME", "%s -> %s" % (oldstate_hostname, state[node_id]['hostname']), url)
 
 def cleanup_eventlog(eventlog):
 	eventlog.sort(key=lambda v: v['timestamp'])
