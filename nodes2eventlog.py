@@ -10,7 +10,6 @@ import feed.atom
 import datetime
 import dateutil.parser
 import uuid
-from math import floor
 
 MAX_LOG_ENTRIES = 10000
 MAX_FEED_ENTRIES = 100
@@ -32,26 +31,6 @@ def dump_pickle(data, filename):
 		pickle.dump(data, f)
 		f.flush()
 		os.fsync(f.fileno())
-
-def datetime2str(timestamp):
-	rfc3339str = timestamp.strftime('%Y-%m-%dT%H:%M:%S')
-
-	totalseconds = timestamp.utcoffset().total_seconds()
-	totalminutes = floor(totalseconds / 60)
-	if seconds < 0:
-		tzprefix = '-'
-	else:
-		tzprefix = '+'
-
-	minutes = abs(int(floor(minutes / 60)))
-	seconds = abs(seconds % 60)
-
-	if totalseconds is None:
-		rfc3339str += 'Z'
-	else:
-		rfc3339str += '%s%02d:%02d' % (tzprefix, minutes, seconds)
-
-	return rfc3339str
 
 def extract_eventfeed(eventlog):
 	xmldoc, events = feed.atom.new_xmldoc_feed()
