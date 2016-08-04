@@ -128,9 +128,16 @@ def cleanup_eventlog(eventlog):
 	eventlog.sort(key=lambda v: v['timestamp'])
 	return eventlog[-MAX_LOG_ENTRIES:]
 
+def usage():
+	prog = 'nodes2eventlog.py'
+	if len(sys.argv) > 0:
+		prog = sys.argv[0]
+
+	print('%s IN_NODES_JSON DBPATH OUT_FEED' % (prog))
+
 def main():
 	if len(sys.argv) != 4:
-		print("./filter IN_NODES_JSON DBPATH OUT_FEED")
+		usage()
 		sys.exit(1)
 
 	nodes_in = sys.argv[1]
