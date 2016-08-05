@@ -17,6 +17,26 @@ MAX_FEED_ENTRIES = 100
 MAP_NODE_URL = 'http://vogtland.freifunk.net/map/#!v:m;n:'
 OFFLINE_THRESHOLD = 0 # minutes
 
+def load_env_config():
+	if 'MAX_LOG_ENTRIES' in os.environ:
+		global MAX_LOG_ENTRIES
+		MAX_LOG_ENTRIES = int(os.environ['MAX_LOG_ENTRIES'])
+		assert MAX_LOG_ENTRIES >= 0
+
+	if 'MAX_FEED_ENTRIES' in os.environ:
+		global MAX_FEED_ENTRIES
+		MAX_FEED_ENTRIES = int(os.environ['MAX_FEED_ENTRIES'])
+		assert MAX_FEED_ENTRIES >= 0
+
+	if 'MAP_NODE_URL' in os.environ:
+		global MAP_NODE_URL
+		MAP_NODE_URL = os.environ['MAP_NODE_URL']
+
+	if 'OFFLINE_THRESHOLD' in os.environ:
+		global OFFLINE_THRESHOLD
+		OFFLINE_THRESHOLD = int(os.environ['OFFLINE_THRESHOLD'])
+		assert OFFLINE_THRESHOLD >= 0
+
 def load_eventlog(path):
 	try:
 		return pickle.load(open(path, 'rb'))
@@ -157,6 +177,8 @@ def main():
 	if len(sys.argv) != 4:
 		usage()
 		sys.exit(1)
+
+	load_env_config()
 
 	nodes_in = sys.argv[1]
 	dbpath = sys.argv[2]
