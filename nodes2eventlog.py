@@ -150,13 +150,19 @@ def parse_nodestate(nodes, eventlog, state):
 		if new_node:
 			log_event_node(eventlog, firsttimestamp, "new", node_id, state[node_id])
 
-		if oldstate_online != state[node_id]['online'] or new_node:
+		if oldstate_online != state[node_id]['online'] or new_node or not state[node_id]['online']:
 			if state[node_id]['online']:
 				eventtype = "online"
+				timestamp = firsttimestamp
 			else:
 				eventtype = "offline"
+				if offline_timelimit < timestamp:
+					new_node = False
+				else:
+					new_node = True
 
-			log_event_node(eventlog, timestamp, eventtype, node_id, state[node_id])
+			if new_node:
+				log_event_node(eventlog, timestamp, eventtype, node_id, state[node_id])
 
 		if oldstate_hostname != "" and oldstate_hostname != state[node_id]['hostname']:
 			url = MAP_NODE_URL + node_id
