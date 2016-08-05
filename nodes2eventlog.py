@@ -15,6 +15,7 @@ MAX_LOG_ENTRIES = 10000
 MAX_FEED_ENTRIES = 100
 
 MAP_NODE_URL = 'http://vogtland.freifunk.net/map/#!v:m;n:'
+OFFLINE_THRESHOLD = 0 # minutes
 
 def load_eventlog(path):
 	try:
@@ -101,6 +102,7 @@ def log_event_node(eventlog, timestamp, eventtype, node_id, node_state):
 
 def parse_nodestate(nodes, eventlog, state):
 	new_node_timelimit = datetime.datetime.utcnow() - datetime.timedelta(14)
+	offline_timelimit = datetime.datetime.utcnow() - datetime.timedelta(0, 0, 0, 0, OFFLINE_THRESHOLD)
 
 	for node in nodes['nodes']:
 		node_id = node['nodeinfo']['node_id']
@@ -119,13 +121,17 @@ def parse_nodestate(nodes, eventlog, state):
 
 		state[node_id]['available'] = True
 		state[node_id]['hostname'] = node['nodeinfo']['hostname']
-		state[node_id]['online'] = node['flags']['online']
+
+		# only accept changes to online directly
+		# or to offline after reaching threshold
+		if node['flags']['online'] or offline_timelimit >= timestamp:
+			state[node_id]['online'] = node['flags']['online']
 
 		if new_node:
 			log_event_node(eventlog, firsttimestamp, "new", node_id, state[node_id])
 
-		if oldstate_online != node['flags']['online'] or new_node:
-			if node['flags']['online']:
+		if oldstate_online != state[node_id]['online'] or new_node:
+			if state[node_id]['online']:
 				eventtype = "online"
 			else:
 				eventtype = "offline"
