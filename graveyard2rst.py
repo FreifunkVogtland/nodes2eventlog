@@ -60,8 +60,9 @@ def write_zones(f, zones):
 		months.sort(reverse = True)
 
 		for month in months:
-			f.write("\n%u\n" % month)
-			f.write("%s\n\n" % ("-" * len(str(month))))
+			title = "%u-%02u" % (year, month)
+			f.write("\n%s\n" % (title))
+			f.write("%s\n\n" % ("-" * len(title)))
 
 			for node in zones[year][month]:
 				f.write("* %s\n" % node['hostname'])
