@@ -6,6 +6,7 @@ import os
 import os.path
 import pickle
 import pprint
+import datetime
 
 def load_state(path):
 	try:
@@ -23,10 +24,14 @@ def usage():
 
 def graveyard2zones(graveyard):
 	zones = {}
+	old_node_timelimit = datetime.datetime.utcnow() - datetime.timedelta(14)
 
 	for node_id in graveyard:
 		node = graveyard[node_id]
 		node['id'] = node_id
+
+		if old_node_timelimit < node['lastseen']:
+			continue
 
 		year = node['lastseen'].year
 		if not year in zones:
