@@ -92,12 +92,13 @@ def mark_nodes(state):
 	for nodeid, node in state.items():
 		node['available'] = False
 
-def sweep_nodes(state, eventlog):
+def sweep_nodes(state, eventlog, graveyard):
 	filtered_state = {k:v for (k,v) in state.items() if v['available']}
 
 	removed = {k:v for (k,v) in state.items() if not v['available']}
 	for node_id, node in removed.items():
 		log_event_node(eventlog, datetime.datetime.utcnow(), "drop", node_id, node)
+		adjust_graveyard(graveyard, node_id, node, node['firstseen'], node['lastseen'])
 
 	return dict(filtered_state)
 
@@ -137,6 +138,13 @@ def parse_nodestate(nodes, eventlog, state, graveyard):
 	offline_timelimit = datetime.datetime.utcnow() - datetime.timedelta(0, 0, 0, 0, OFFLINE_THRESHOLD)
 
 	for node in nodes['nodes']:
+		# is ffv firmware?
+		if not node['nodeinfo']['software']['firmware']['release'].endswith('-v'):
+			continue
+
+		if node['nodeinfo']['hostname'].startswith("ffv-"):
+			continue
+
 		node_id = node['nodeinfo']['node_id']
 		new_node = False
 		timestamp = dateutil.parser.parse(node['lastseen'])
@@ -153,6 +161,8 @@ def parse_nodestate(nodes, eventlog, state, graveyard):
 
 		state[node_id]['available'] = True
 		state[node_id]['hostname'] = node['nodeinfo']['hostname']
+		state[node_id]['firstseen'] = firsttimestamp
+		state[node_id]['lastseen'] = timestamp
 
 		# only accept changes to online directly
 		# or to offline after reaching threshold
@@ -215,7 +225,7 @@ def main():
 	# data crunching
 	mark_nodes(state)
 	parse_nodestate(nodes, eventlog, state, graveyard)
-	state = sweep_nodes(state, eventlog)
+	state = sweep_nodes(state, eventlog, graveyard)
 
 	eventlog = cleanup_eventlog(eventlog)
 	eventfeed = extract_eventfeed(eventlog)
