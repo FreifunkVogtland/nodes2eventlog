@@ -10,6 +10,7 @@ import feed.atom
 import datetime
 import dateutil.parser
 import uuid
+import copy
 
 MAX_LOG_ENTRIES = 10000
 MAX_FEED_ENTRIES = 100
@@ -120,7 +121,18 @@ def log_event_node(eventlog, timestamp, eventtype, node_id, node_state):
 	url = MAP_NODE_URL + node_id
 	log_event(eventlog, timestamp, eventtype, node_state['hostname'], url)
 
-def parse_nodestate(nodes, eventlog, state):
+def adjust_graveyard(graveyard, node_id, node_state, firstseen, lastseen):
+	# remove zombies from graveyard
+	if node_state['online'] and node_id in graveyard:
+		del(graveyard[node_id])
+
+	# add or refresh gravestones
+	if not node_state['online']:
+		graveyard[node_id] = copy.copy(node_state)
+		graveyard[node_id]['firstseen'] = firstseen
+		graveyard[node_id]['lastseen'] = lastseen
+
+def parse_nodestate(nodes, eventlog, state, graveyard):
 	new_node_timelimit = datetime.datetime.utcnow() - datetime.timedelta(14)
 	offline_timelimit = datetime.datetime.utcnow() - datetime.timedelta(0, 0, 0, 0, OFFLINE_THRESHOLD)
 
@@ -146,6 +158,8 @@ def parse_nodestate(nodes, eventlog, state):
 		# or to offline after reaching threshold
 		if node['flags']['online'] or offline_timelimit >= timestamp:
 			state[node_id]['online'] = node['flags']['online']
+
+		adjust_graveyard(graveyard, node_id, state[node_id], firsttimestamp, timestamp)
 
 		if new_node:
 			log_event_node(eventlog, firsttimestamp, "new", node_id, state[node_id])
@@ -186,6 +200,8 @@ def main():
 
 	state_path = os.path.join(dbpath, "state.pickle")
 	state_outtmp = os.path.join(dbpath, "state.pickle.tmp")
+	graveyard_path = os.path.join(dbpath, "graveyard.pickle")
+	graveyard_outtmp = os.path.join(dbpath, "graveyard.pickle.tmp")
 	eventlog_path = os.path.join(dbpath, "eventlog.pickle")
 	eventlog_outtmp = os.path.join(dbpath, "eventlog.pickle.tmp")
 	feed_outtmp = feed_out + '.tmp'
@@ -194,10 +210,11 @@ def main():
 	nodes = json.load(open(nodes_in))
 	eventlog = load_eventlog(eventlog_path)
 	state = load_state(state_path)
+	graveyard = load_state(graveyard_path)
 
 	# data crunching
 	mark_nodes(state)
-	parse_nodestate(nodes, eventlog, state)
+	parse_nodestate(nodes, eventlog, state, graveyard)
 	state = sweep_nodes(state, eventlog)
 
 	eventlog = cleanup_eventlog(eventlog)
@@ -205,11 +222,13 @@ def main():
 
 	# save
 	dump_pickle(state, state_outtmp)
+	dump_pickle(graveyard, graveyard_outtmp)
 	dump_pickle(eventlog, eventlog_outtmp)
 	dump_feed(eventfeed, feed_outtmp)
 
 	os.rename(state_outtmp, state_path)
 	os.rename(eventlog_outtmp, eventlog_path)
+	os.rename(graveyard_outtmp, graveyard_path)
 	os.rename(feed_outtmp, feed_out)
 
 if __name__ == "__main__":
