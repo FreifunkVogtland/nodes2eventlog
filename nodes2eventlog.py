@@ -98,6 +98,7 @@ def sweep_nodes(state, eventlog, graveyard):
 	removed = {k:v for (k,v) in state.items() if not v['available']}
 	for node_id, node in removed.items():
 		log_event_node(eventlog, datetime.datetime.utcnow(), "drop", node_id, node)
+		node['online'] = False
 		adjust_graveyard(graveyard, node_id, node, node['firstseen'], node['lastseen'])
 
 	return dict(filtered_state)
@@ -186,6 +187,102 @@ def parse_nodestate(nodes, eventlog, state, graveyard):
 			url = MAP_NODE_URL + node_id
 			log_event(eventlog, timestamp, "RENAME", "%s -> %s" % (oldstate_hostname, state[node_id]['hostname']), url)
 
+def merge_node(node, node_id, state, graveyard):
+	if not node_id in state and node_id in graveyard:
+		state[node_id] = graveyard[node_id]
+
+	if not node_id in state:
+		state[node_id] = node
+		return
+
+	if state[node_id]['lastseen'] > node['lastseen']:
+		return
+
+	state[node_id]['available'] = True
+	state[node_id]['online'] = node['online']
+	state[node_id]['hostname'] = node['hostname']
+	state[node_id]['lastseen'] = node['lastseen']
+
+	adjust_graveyard(graveyard, node_id, state[node_id], state[node_id]['firstseen'], state[node_id]['lastseen'])
+
+def parselog(event, state, graveyard):
+
+	if event['eventtype'] == 'online':
+		node_id = event['url'][41:]
+		assert(len(node_id) == 12)
+
+		node = {
+			'available': True,
+			'online': True,
+			'hostname': event['message'],
+			'firstseen': event['timestamp'],
+			'lastseen': event['timestamp'],
+		}
+
+		merge_node(node, node_id, state, graveyard)
+	elif event['eventtype'] == 'offline':
+		node_id = event['url'][41:]
+		assert(len(node_id) == 12)
+
+		node = {
+			'available': True,
+			'online': False,
+			'hostname': event['message'],
+			'firstseen': event['timestamp'],
+			'lastseen': event['timestamp'],
+		}
+
+		merge_node(node, node_id, state, graveyard)
+	elif event['eventtype'] == 'new':
+		node_id = event['url'][41:]
+		assert(len(node_id) == 12)
+
+		node = {
+			'available': True,
+			'online': True,
+			'hostname': event['message'],
+			'firstseen': event['timestamp'],
+			'lastseen': event['timestamp'],
+		}
+
+		merge_node(node, node_id, state, graveyard)
+	elif event['eventtype'] == 'RENAME':
+		node_id = event['url'][41:]
+		assert(len(node_id) == 12)
+
+		a = event['message']
+		nodename = a[(a.find(' -> ') + 4):]
+		node = {
+			'available': True,
+			'online': True,
+			'hostname': nodename,
+			'firstseen': event['timestamp'],
+			'lastseen': event['timestamp'],
+		}
+
+		merge_node(node, node_id, state, graveyard)
+	elif event['eventtype'] == 'drop':
+		node_id = event['url'][41:]
+		assert(len(node_id) == 12)
+
+		node = {
+			'available': True,
+			'online': False,
+			'hostname': event['message'],
+			'firstseen': event['timestamp'],
+			'lastseen': event['timestamp']  - datetime.timedelta(14),
+		}
+
+		merge_node(node, node_id, state, graveyard)
+	else:
+		raise Exception('invalid eventtype %s' % event['eventtype'])
+
+def import_oldeventlog(state, graveyard):
+	oldlog = pickle.load(open("../nodes-json-old/eventlog.pickle", "rb"))
+
+	for event in oldlog:
+		parselog(event, state, graveyard)
+
 def cleanup_eventlog(eventlog):
 	eventlog.sort(key=lambda v: v['timestamp'])
 	return eventlog[-MAX_LOG_ENTRIES:]
@@ -225,6 +322,8 @@ def main():
 	# data crunching
 	mark_nodes(state)
 	parse_nodestate(nodes, eventlog, state, graveyard)
+	if "final.atom" == feed_out:
+		import_oldeventlog(state, graveyard)
 	state = sweep_nodes(state, eventlog, graveyard)
 
 	eventlog = cleanup_eventlog(eventlog)

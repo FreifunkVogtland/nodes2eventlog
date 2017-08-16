@@ -15,4 +15,6 @@ for i in \
 ; do
    ./nodes2eventlog.py ../nodes-json-old/$i db foo.atom
 done
+./nodes2eventlog.py ../nodes-json-old/$i db final.atom
+./nodes2eventlog.py ../nodes-json-old/2017-08-16.json db foo.atom
 ./graveyard2rst.py db graveyard.rst; cat graveyard.rst
