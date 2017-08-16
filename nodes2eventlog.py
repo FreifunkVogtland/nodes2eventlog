@@ -127,6 +127,9 @@ def adjust_graveyard(graveyard, node_id, node_state, firstseen, lastseen):
 	if node_state['online'] and node_id in graveyard:
 		del(graveyard[node_id])
 
+	if node_state['hostname'].startswith("ffv-"):
+		return
+
 	# add or refresh gravestones
 	if not node_state['online']:
 		graveyard[node_id] = copy.copy(node_state)
@@ -139,10 +142,7 @@ def parse_nodestate(nodes, eventlog, state, graveyard):
 
 	for node in nodes['nodes']:
 		# is ffv firmware?
-		if not node['nodeinfo']['software']['firmware']['release'].endswith('-v'):
-			continue
-
-		if node['nodeinfo']['hostname'].startswith("ffv-"):
+		if not 'firmware' in node['nodeinfo']['software'] or not node['nodeinfo']['software']['firmware']['release'].endswith('-v'):
 			continue
 
 		node_id = node['nodeinfo']['node_id']
