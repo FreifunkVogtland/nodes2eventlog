@@ -45,7 +45,7 @@ def graveyard2zones(graveyard):
 
 	for year in zones:
 		for month in zones[year]:
-			zones[year][month].sort(reverse = True, key = lambda node: node['lastseen'])
+			zones[year][month].sort(reverse = True, key = lambda node: (node['lastseen'].date(), node['firstseen'].date()))
 
 	return zones
 
