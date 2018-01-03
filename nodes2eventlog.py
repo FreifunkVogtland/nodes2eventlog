@@ -11,6 +11,7 @@ import datetime
 import dateutil.parser
 import uuid
 import copy
+import pytz
 
 MAX_LOG_ENTRIES = 10000
 MAX_FEED_ENTRIES = 100
@@ -141,6 +142,12 @@ def parse_nodestate(nodes, eventlog, state, graveyard):
 		new_node = False
 		timestamp = dateutil.parser.parse(node['lastseen'])
 		firsttimestamp = dateutil.parser.parse(node['firstseen'])
+
+		if firsttimestamp.tzinfo:
+			firsttimestamp = firsttimestamp.astimezone(pytz.utc).replace(tzinfo=None)
+
+		if timestamp.tzinfo:
+			timestamp = timestamp.astimezone(pytz.utc).replace(tzinfo=None)
 
 		if not node_id in state:
 			state[node_id] = {}
