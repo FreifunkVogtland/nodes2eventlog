@@ -16,7 +16,7 @@ import uuid
 MAX_LOG_ENTRIES = 10000
 MAX_FEED_ENTRIES = 100
 
-MAP_NODE_URL = 'http://vogtland.freifunk.net/map/#!v:m;n:'
+MAP_NODE_URL = 'https://vogtland.freifunk.net/map/#!/map/'
 OFFLINE_THRESHOLD = 0  # minutes
 
 
